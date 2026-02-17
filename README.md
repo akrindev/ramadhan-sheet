@@ -74,6 +74,12 @@ bun run db:apply:local
 bun run dev
 ```
 
+Cloudflare Pages runtime parity (uses Wrangler locally after build):
+
+```sh
+bun run dev:wrangler
+```
+
 ## Validation
 
 ```sh
@@ -114,7 +120,7 @@ These names must match server code usage (`platform.env.DB`, `platform.env.IDENT
 
 ```sh
 bun run build
-bun run deploy
+bun run deploy:wrangler
 ```
 
 Or deploy via Wrangler directly:

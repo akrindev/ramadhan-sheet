@@ -5,8 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
+		"dev:wrangler": "vite build && wrangler pages dev .svelte-kit/cloudflare",
 		"build": "vite build",
 		"preview": "vite preview",
+		"deploy:wrangler": "wrangler pages deploy .svelte-kit/cloudflare",
 		"deploy": "wrangler pages deploy .svelte-kit/cloudflare",
 		"db:apply:local": "wrangler d1 execute ramadhan-sheet --local --file=schema.sql",
 		"db:apply:remote": "wrangler d1 execute ramadhan-sheet --remote --file=schema.sql",

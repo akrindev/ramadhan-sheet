@@ -115,6 +115,8 @@
     resetForm();
   }
 
+  const IDENTITY_API_URL = 'https://smeduverse.salju.test/api/identity/student';
+
   async function lookupStudent() {
     if (!nis.trim()) {
       return;
@@ -124,7 +126,7 @@
     identityLoading = true;
 
     try {
-      const response = await fetch(`/api/identity/student/mock?nis=${encodeURIComponent(nis.trim())}`);
+      const response = await fetch(`${IDENTITY_API_URL}?nis=${encodeURIComponent(nis.trim())}`);
       const payload: unknown = await response.json();
 
       if (!response.ok) {
@@ -134,16 +136,58 @@
         return;
       }
 
-      if (!isStudentPayload(payload)) {
+      // Handle external API response format: { success: true, data: { fullname, nipd, rombel_aktif } }
+      if (typeof payload !== 'object' || payload === null) {
         studentFound = false;
         message = { text: 'Format data siswa tidak valid', type: 'error' };
         shakeCard(identityCardRef);
         return;
       }
 
-      fullname = payload.fullname;
-      rombel = payload.rombel;
-      nis = payload.nis;
+      const payloadObj = payload as { success?: unknown; data?: unknown };
+      
+      if (payloadObj.success !== true) {
+        studentFound = false;
+        message = { text: 'Data siswa tidak ditemukan', type: 'error' };
+        shakeCard(identityCardRef);
+        return;
+      }
+
+      const source = payloadObj.data;
+      if (typeof source !== 'object' || source === null) {
+        studentFound = false;
+        message = { text: 'Format data siswa tidak valid', type: 'error' };
+        shakeCard(identityCardRef);
+        return;
+      }
+
+      const student = source as {
+        fullname?: unknown;
+        nipd?: unknown;
+        rombel_aktif?: unknown;
+      };
+
+      const studentFullname = typeof student.fullname === 'string' ? student.fullname : '';
+      const studentNis = typeof student.nipd === 'string' ? student.nipd : nis;
+      
+      let studentRombel = '';
+      if (Array.isArray(student.rombel_aktif) && student.rombel_aktif.length > 0) {
+        const firstRombel = student.rombel_aktif[0] as { nama?: unknown };
+        if (typeof firstRombel.nama === 'string') {
+          studentRombel = firstRombel.nama;
+        }
+      }
+
+      if (!studentFullname || !studentRombel) {
+        studentFound = false;
+        message = { text: 'Data siswa belum lengkap pada layanan identitas', type: 'error' };
+        shakeCard(identityCardRef);
+        return;
+      }
+
+      fullname = studentFullname;
+      rombel = studentRombel;
+      nis = studentNis;
       studentFound = true;
       message = { text: 'Data siswa ditemukan.', type: 'success' };
       

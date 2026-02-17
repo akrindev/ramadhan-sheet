@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import axios from 'axios';
 
 export const GET: RequestHandler = async ({ url, platform }) => {
   const nis = url.searchParams.get('nis')?.trim();
@@ -17,38 +18,26 @@ export const GET: RequestHandler = async ({ url, platform }) => {
     return json({ error: 'IDENTITY_API_URL belum dikonfigurasi' }, { status: 500 });
   }
 
-  const endpoint = new URL(baseUrl);
-  endpoint.searchParams.set('nis', nis);
-
   try {
-    const response = await fetch(endpoint, {
-      method: 'GET',
+    const response = await axios.get(baseUrl, {
+      params: { nis },
       headers: {
         Accept: 'application/json'
-      }
+      },
+      timeout: 10000
     });
 
-    const payload: unknown = await response.json();
-
-    if (!response.ok) {
-      const error =
-        typeof payload === 'object' && payload !== null && 'error' in payload
-          ? String((payload as { error: unknown }).error)
-          : 'Data siswa tidak ditemukan';
-      return json({ error }, { status: response.status });
-    }
+    const payload = response.data;
 
     if (typeof payload !== 'object' || payload === null) {
       return json({ error: 'Format respons identitas tidak valid' }, { status: 502 });
     }
 
-    const payloadObj = payload as { success?: unknown; data?: unknown };
-
-    if (payloadObj.success !== true) {
+    if (payload.success !== true) {
       return json({ error: 'Data siswa tidak ditemukan' }, { status: 404 });
     }
 
-    const source = payloadObj.data;
+    const source = payload.data;
 
     if (typeof source !== 'object' || source === null) {
       return json({ error: 'Format data siswa tidak valid' }, { status: 502 });
@@ -80,7 +69,14 @@ export const GET: RequestHandler = async ({ url, platform }) => {
       fullname,
       rombel
     });
-  } catch {
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage = 
+        typeof error.response?.data === 'object' && error.response?.data !== null && 'error' in error.response.data
+          ? String(error.response.data.error)
+          : 'Data siswa tidak ditemukan';
+      return json({ error: errorMessage }, { status: error.response?.status || 502 });
+    }
     return json({ error: 'Gagal mengambil data dari layanan identitas' }, { status: 502 });
   }
 };

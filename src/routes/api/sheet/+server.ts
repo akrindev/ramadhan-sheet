@@ -125,6 +125,11 @@ export const GET: RequestHandler = async ({ url, platform }) => {
     const dateFrom = url.searchParams.get('date_from')?.trim() || '';
     const dateTo = url.searchParams.get('date_to')?.trim() || '';
     const flat = url.searchParams.get('flat') === '1';
+    const rawLimit = Number(url.searchParams.get('limit') || '20');
+    const rawOffset = Number(url.searchParams.get('offset') || '0');
+
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.floor(rawLimit), 1), 200) : 20;
+    const offset = Number.isFinite(rawOffset) ? Math.max(Math.floor(rawOffset), 0) : 0;
 
     if (nis && !flat) {
       const student = await platform.env.DB.prepare(
@@ -202,18 +207,40 @@ export const GET: RequestHandler = async ({ url, platform }) => {
       ORDER BY s.tanggal DESC, s.created_at DESC
     `;
 
-    if (!hasFilters) {
-      query += ' LIMIT 100';
-    }
+    query += ' LIMIT ? OFFSET ?';
 
+    const effectiveLimit = flat ? limit : hasFilters ? Math.max(limit, 100) : 100;
     let statement = platform.env.DB.prepare(query);
-    if (binds.length > 0) {
-      statement = statement.bind(...binds);
-    }
+    statement = statement.bind(...binds, effectiveLimit + 1, offset);
 
-    const result = await statement.all();
+    const result = await statement.all<{
+      id: number;
+      tanggal: string;
+      sholat_fardhu: string;
+      status_puasa: string;
+      alasan_tidak_puasa: string | null;
+      ibadah_sunnah: string;
+      tadarus: string;
+      kebiasaan: string;
+      created_at: string | number;
+      nis: string;
+      fullname: string;
+      rombel: string;
+    }>();
 
-    return json({ sheets: result.results });
+    const rows = (result.results || []) as Array<Record<string, unknown>>;
+    const hasMore = rows.length > effectiveLimit;
+    const sheets = hasMore ? rows.slice(0, effectiveLimit) : rows;
+
+    return json({
+      sheets,
+      pagination: {
+        limit: effectiveLimit,
+        offset,
+        hasMore,
+        nextOffset: offset + sheets.length
+      }
+    });
   } catch (err) {
     console.error('Get sheets error:', err);
     return json({ error: 'Terjadi kesalahan saat mengambil data' }, { status: 500 });

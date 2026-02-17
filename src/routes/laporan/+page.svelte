@@ -19,6 +19,7 @@
   let selectedRombel = $state('');
   let laporanByRombel = $state<LaporanData[]>([]);
   let reducedMotion = $state(false);
+  let exportLoading = $state(false);
 
   function buildQuery(basePath: string, params: Record<string, string>) {
     const q = new URLSearchParams();
@@ -56,6 +57,30 @@
       return `Sampai ${new Date(dateTo).toLocaleDateString('id-ID')}`;
     }
     return 'Semua tanggal';
+  }
+
+  function formatDateForFile(value: string) {
+    if (!value) {
+      return 'semua_tanggal';
+    }
+    return value.replace(/[^0-9-]/g, '');
+  }
+
+  function parseArrayField(field: unknown): string[] {
+    if (Array.isArray(field)) {
+      return field.filter((item): item is string => typeof item === 'string');
+    }
+    if (typeof field !== 'string' || field.trim().length === 0) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(field) as unknown;
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is string => typeof item === 'string')
+        : [];
+    } catch {
+      return [];
+    }
   }
 
   function animateHeader() {
@@ -125,6 +150,91 @@
     fetchSummary();
   }
 
+  async function fetchAllActivitiesForExport() {
+    let offset = 0;
+    let allRows: Array<Record<string, unknown>> = [];
+    let shouldContinue = true;
+
+    while (shouldContinue) {
+      const response = await fetch(
+        buildQuery('/api/sheet', {
+          flat: '1',
+          rombel: selectedRombel,
+          date_from: dateFrom,
+          date_to: dateTo,
+          limit: '200',
+          offset: String(offset)
+        })
+      );
+
+      if (!response.ok) {
+        throw new Error('Gagal mengambil data kelas untuk export');
+      }
+
+      const data = (await response.json()) as {
+        sheets: Array<Record<string, unknown>>;
+        pagination?: { hasMore?: boolean; nextOffset?: number };
+      };
+
+      const chunk = data.sheets || [];
+      allRows = [...allRows, ...chunk];
+
+      shouldContinue = data.pagination?.hasMore === true;
+      offset = data.pagination?.nextOffset ?? offset + chunk.length;
+      if (chunk.length === 0) {
+        shouldContinue = false;
+      }
+    }
+
+    return allRows;
+  }
+
+  async function exportClassXlsx() {
+    if (!selectedRombel.trim()) {
+      error = 'Pilih kelas terlebih dahulu untuk export per kelas.';
+      return;
+    }
+
+    exportLoading = true;
+    error = '';
+
+    try {
+      const rows = await fetchAllActivitiesForExport();
+      if (rows.length === 0) {
+        error = 'Tidak ada data untuk diexport.';
+        return;
+      }
+
+      const xlsx = await import('xlsx');
+      const workbook = xlsx.utils.book_new();
+
+      const mapped = rows.map((raw) => ({
+        tanggal: String(raw.tanggal || ''),
+        nis: String(raw.nis || ''),
+        fullname: String(raw.fullname || ''),
+        rombel: String(raw.rombel || ''),
+        status_puasa: String(raw.status_puasa || ''),
+        alasan_tidak_puasa: String(raw.alasan_tidak_puasa || ''),
+        sholat_fardhu: parseArrayField(raw.sholat_fardhu).join(', '),
+        ibadah_sunnah: parseArrayField(raw.ibadah_sunnah).join(', '),
+        kebiasaan: parseArrayField(raw.kebiasaan).join(', '),
+        tadarus: String(raw.tadarus || ''),
+        created_at: String(raw.created_at || '')
+      }));
+
+      const worksheet = xlsx.utils.json_to_sheet(mapped);
+      xlsx.utils.book_append_sheet(workbook, worksheet, 'Laporan Kelas');
+      xlsx.writeFile(
+        workbook,
+        `laporan_kelas_${selectedRombel}_${formatDateForFile(dateFrom)}_${formatDateForFile(dateTo)}.xlsx`
+      );
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Gagal export data kelas.';
+    } finally {
+      exportLoading = false;
+    }
+  }
+
   onMount(() => {
     reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     fetchSummary();
@@ -177,6 +287,9 @@
       <div class="actions">
         <button class="btn-primary" onclick={applyFilters} disabled={loading}>Terapkan</button>
         <button class="btn-secondary" onclick={resetFilters} disabled={loading}>Reset</button>
+        <button class="btn-secondary" onclick={exportClassXlsx} disabled={loading || exportLoading}>
+          {exportLoading ? 'Menyiapkan XLSX...' : 'Export XLSX Kelas'}
+        </button>
       </div>
     </div>
     <p class="hint">Rentang aktif: {getDateRangeLabel()}</p>

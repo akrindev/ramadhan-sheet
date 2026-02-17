@@ -27,6 +27,13 @@
   let activitySheets = $state<ActivityData[]>([]);
   let showFullDetails = $state(true);
   let reducedMotion = $state(false);
+  let hasMore = $state(false);
+  let loadingMore = $state(false);
+  let exportLoading = $state(false);
+  let sentinelRef = $state<HTMLElement>();
+
+  let observer: IntersectionObserver | null = null;
+  const pageLimit = 20;
 
   function buildQuery(basePath: string, params: Record<string, string>) {
     const q = new URLSearchParams();
@@ -130,6 +137,13 @@
     return activitySheets.filter((sheet) => parseArrayField(sheet.sholat_fardhu).length === 5).length;
   }
 
+  function formatDateForFile(value: string) {
+    if (!value) {
+      return 'semua_tanggal';
+    }
+    return value.replace(/[^0-9-]/g, '');
+  }
+
   function animateHeader() {
     gsap.fromTo('.header-section', { opacity: 0, y: -22 }, { opacity: 1, y: 0, duration: 0.8, ease: 'expo.out' });
     gsap.fromTo('.filter-section', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.65, delay: 0.15 });
@@ -174,9 +188,15 @@
     }
   }
 
-  async function fetchActivities() {
-    loading = true;
-    error = '';
+  async function fetchActivities(reset = true) {
+    if (reset) {
+      loading = true;
+      error = '';
+    } else {
+      loadingMore = true;
+    }
+
+    const offset = reset ? 0 : activitySheets.length;
 
     try {
       const response = await fetch(
@@ -185,7 +205,9 @@
           nis: selectedNis,
           rombel: selectedRombel,
           date_from: dateFrom,
-          date_to: dateTo
+          date_to: dateTo,
+          limit: String(pageLimit),
+          offset: String(offset)
         })
       );
 
@@ -193,18 +215,151 @@
         throw new Error('Gagal mengambil aktivitas siswa');
       }
 
-      const data = (await response.json()) as { sheets: ActivityData[] };
-      activitySheets = data.sheets || [];
+      const data = (await response.json()) as {
+        sheets: ActivityData[];
+        pagination?: { hasMore?: boolean };
+      };
 
-      if (!reducedMotion) {
+      const nextRows = data.sheets || [];
+      activitySheets = reset ? nextRows : [...activitySheets, ...nextRows];
+      hasMore = data.pagination?.hasMore === true;
+
+      if (!reducedMotion && reset) {
         setTimeout(() => animateCards(), 40);
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Terjadi kesalahan saat mengambil data';
-      activitySheets = [];
+      if (reset) {
+        activitySheets = [];
+        hasMore = false;
+      }
     } finally {
       loading = false;
+      loadingMore = false;
     }
+  }
+
+  async function fetchAllActivitiesForExport(filters: {
+    nis?: string;
+    rombel?: string;
+    date_from?: string;
+    date_to?: string;
+  }) {
+    let offset = 0;
+    let allRows: ActivityData[] = [];
+    let shouldContinue = true;
+
+    while (shouldContinue) {
+      const response = await fetch(
+        buildQuery('/api/sheet', {
+          flat: '1',
+          nis: filters.nis || '',
+          rombel: filters.rombel || '',
+          date_from: filters.date_from || '',
+          date_to: filters.date_to || '',
+          limit: '200',
+          offset: String(offset)
+        })
+      );
+
+      if (!response.ok) {
+        throw new Error('Gagal mengambil data export');
+      }
+
+      const data = (await response.json()) as {
+        sheets: ActivityData[];
+        pagination?: { hasMore?: boolean; nextOffset?: number };
+      };
+
+      const chunk = data.sheets || [];
+      allRows = [...allRows, ...chunk];
+
+      shouldContinue = data.pagination?.hasMore === true;
+      offset = data.pagination?.nextOffset ?? offset + chunk.length;
+
+      if (chunk.length === 0) {
+        shouldContinue = false;
+      }
+    }
+
+    return allRows;
+  }
+
+  async function exportStudentXlsx() {
+    if (!selectedNis.trim()) {
+      error = 'Isi NIS terlebih dahulu untuk export per siswa.';
+      return;
+    }
+
+    exportLoading = true;
+    error = '';
+
+    try {
+      const rows = await fetchAllActivitiesForExport({
+        nis: selectedNis,
+        date_from: dateFrom,
+        date_to: dateTo
+      });
+
+      if (rows.length === 0) {
+        error = 'Tidak ada data untuk diexport.';
+        return;
+      }
+
+      const xlsx = await import('xlsx');
+      const workbook = xlsx.utils.book_new();
+      const mapped = rows.map((sheet) => ({
+        tanggal: sheet.tanggal,
+        nis: sheet.nis,
+        fullname: sheet.fullname,
+        rombel: sheet.rombel,
+        status_puasa: sheet.status_puasa,
+        alasan_tidak_puasa: sheet.alasan_tidak_puasa || '',
+        sholat_fardhu: parseArrayField(sheet.sholat_fardhu).join(', '),
+        ibadah_sunnah: parseArrayField(sheet.ibadah_sunnah).join(', '),
+        kebiasaan: parseArrayField(sheet.kebiasaan).join(', '),
+        tadarus: sheet.tadarus || '',
+        created_at: formatCreatedAt(sheet.created_at)
+      }));
+
+      const worksheet = xlsx.utils.json_to_sheet(mapped);
+      xlsx.utils.book_append_sheet(workbook, worksheet, 'Aktivitas Siswa');
+      xlsx.writeFile(
+        workbook,
+        `laporan_siswa_${selectedNis}_${formatDateForFile(dateFrom)}_${formatDateForFile(dateTo)}.xlsx`
+      );
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Gagal export data siswa.';
+    } finally {
+      exportLoading = false;
+    }
+  }
+
+  function setupInfiniteObserver() {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+
+    if (!sentinelRef) {
+      return;
+    }
+
+    observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (!target?.isIntersecting) {
+          return;
+        }
+
+        if (!loading && !loadingMore && hasMore) {
+          fetchActivities(false);
+        }
+      },
+      { root: null, rootMargin: '200px 0px', threshold: 0.01 }
+    );
+
+    observer.observe(sentinelRef);
   }
 
   function applyFilters() {
@@ -235,6 +390,18 @@
 
     if (!reducedMotion) {
       animateHeader();
+    }
+
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      }
+    };
+  });
+
+  $effect(() => {
+    if (sentinelRef) {
+      setupInfiniteObserver();
     }
   });
 </script>
@@ -289,6 +456,9 @@
         <button class="btn-secondary" onclick={resetFilters} disabled={loading}>Reset</button>
         <button class="btn-secondary" onclick={toggleAllDetails} disabled={loading}>
           {showFullDetails ? 'Sembunyikan Detail Lengkap' : 'Tampilkan Detail Lengkap'}
+        </button>
+        <button class="btn-secondary" onclick={exportStudentXlsx} disabled={loading || exportLoading}>
+          {exportLoading ? 'Menyiapkan XLSX...' : 'Export XLSX Siswa'}
         </button>
       </div>
     </div>
@@ -404,6 +574,16 @@
         </article>
       {/each}
     </section>
+
+    {#if hasMore}
+      <div class="load-anchor" bind:this={sentinelRef}>
+        {#if loadingMore}
+          Memuat aktivitas berikutnya...
+        {:else}
+          Scroll untuk memuat lebih banyak
+        {/if}
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -532,6 +712,7 @@
   .actions {
     display: flex;
     gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .btn-primary,
@@ -601,6 +782,14 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 0.75rem;
+  }
+
+  .load-anchor {
+    margin-top: 0.9rem;
+    text-align: center;
+    color: rgba(224, 216, 195, 0.72);
+    font-size: 0.84rem;
+    padding: 0.85rem;
   }
 
   .activity-card {
@@ -746,6 +935,7 @@
 
     .actions {
       grid-column: span 2;
+      width: 100%;
     }
 
     .stats-grid {

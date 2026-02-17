@@ -1,0 +1,13 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "ramadhan-sheet"
+compatibility_date = "2025-02-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "<YOUR_DATABASE_NAME>"
+database_id = "<YOUR_DATABASE_ID>"
+
+[vars]
+IDENTITY_API_URL = "<YOUR_IDENTITY_API_URL>"

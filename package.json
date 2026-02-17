@@ -14,9 +14,11 @@
 		"db:apply:remote": "wrangler d1 execute ramadhan-sheet --remote --file=schema.sql",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"dev:wrangler:watch": "concurrently \"vite build --watch\" \"wrangler pages dev --live-reload .svelte-kit/cloudflare\""
 	},
 	"devDependencies": {
+		"concurrently": "^9.1.2",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-cloudflare": "^7.2.7",
 		"@sveltejs/kit": "^2.50.2",

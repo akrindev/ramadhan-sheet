@@ -80,6 +80,14 @@ Cloudflare Pages runtime parity (uses Wrangler locally after build):
 bun run dev:wrangler
 ```
 
+Cloudflare Pages with live reload (rebuilds on file changes):
+
+```sh
+bun run dev:wrangler:watch
+```
+
+This runs both `vite build --watch` and `wrangler pages dev --live-reload` in parallel, so your changes trigger automatic rebuilds and the browser refreshes automatically.
+
 ## Validation
 
 ```sh

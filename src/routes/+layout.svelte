@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
-	import gsap from 'gsap';
-	import favicon from '$lib/assets/favicon.svg';
+	import { page } from "$app/stores";
+	import gsap from "gsap";
+	import { onMount } from "svelte";
 
 	// Props
 	let { children } = $props();
@@ -15,13 +14,9 @@
 	let particles: Particle[] = [];
 	let mouse = { x: -1000, y: -1000 };
 	let animationFrameId: number;
-	
-	let menuOpen = $state(false);
-	let mobileOverlay: HTMLElement;
-	let menuItems: HTMLElement[] = [];
-	let menuTl: gsap.core.Timeline | null = null;
 	let marqueeTextRef: HTMLElement;
-	let marqueeText = "RAMADHAN KAREEM • SUCIKAN HATI • TINGKATKAN IMAN • MERAIH BERKAH • ";
+	let marqueeText =
+		"RAMADHAN KAREEM • SUCIKAN HATI • TINGKATKAN IMAN • MERAIH BERKAH • ";
 
 	// Particle System
 	class Particle {
@@ -85,8 +80,8 @@
 		height = window.innerHeight;
 		canvas.width = width;
 		canvas.height = height;
-		ctx = canvas.getContext('2d');
-		
+		ctx = canvas.getContext("2d");
+
 		particles = [];
 		const particleCount = Math.min(width * 0.1, 150); // Responsive count
 		for (let i = 0; i < particleCount; i++) {
@@ -97,8 +92,8 @@
 	function animateParticles() {
 		if (!ctx) return;
 		ctx.clearRect(0, 0, width, height);
-		
-		particles.forEach(p => {
+
+		particles.forEach((p) => {
 			p.update();
 			p.draw();
 		});
@@ -115,100 +110,51 @@
 		mouse.y = e.clientY;
 	}
 
-	// Menu Animation
-	function toggleMenu() {
-		menuOpen = !menuOpen;
-		
-		if (menuTl) menuTl.kill();
-		menuTl = gsap.timeline();
-
-		if (menuOpen) {
-			// Lock body scroll
-			document.body.style.overflow = 'hidden';
-			
-			menuTl.to(mobileOverlay, {
-				duration: 0.6,
-				y: '0%',
-				ease: 'power3.inOut',
-				display: 'flex'
-			})
-			.fromTo(menuItems, {
-				y: 50,
-				opacity: 0
-			}, {
-				y: 0,
-				opacity: 1,
-				duration: 0.5,
-				stagger: 0.1,
-				ease: 'power2.out'
-			}, '-=0.2');
-		} else {
-			// Unlock body scroll
-			document.body.style.overflow = '';
-
-			menuTl.to(menuItems, {
-				y: -30,
-				opacity: 0,
-				duration: 0.3,
-				stagger: 0.05,
-				ease: 'power2.in'
-			})
-			.to(mobileOverlay, {
-				duration: 0.5,
-				y: '-100%',
-				ease: 'power3.inOut',
-				onComplete: () => {
-					gsap.set(mobileOverlay, { display: 'none' });
-				}
-			});
-		}
-	}
-
 	// Marquee Animation
 	function initMarquee() {
 		if (!marqueeTextRef) return;
-		
+
 		// Split text for per-character animation
-		const chars = marqueeText.split('');
+		const chars = marqueeText.split("");
 		// Create 4 repetitions for smooth scrolling
 		const repetitions = 4;
-		
-		marqueeTextRef.innerHTML = '';
-		
-		for(let r=0; r<repetitions; r++) {
+
+		marqueeTextRef.innerHTML = "";
+
+		for (let r = 0; r < repetitions; r++) {
 			chars.forEach((char) => {
-				const span = document.createElement('span');
-				span.textContent = char === ' ' ? '\u00A0' : char;
-				span.style.opacity = '0.5';
-				span.style.display = 'inline-block';
-				span.style.transition = 'color 0.3s';
+				const span = document.createElement("span");
+				span.textContent = char === " " ? "\u00A0" : char;
+				span.style.opacity = "0.5";
+				span.style.display = "inline-block";
+				span.style.transition = "color 0.3s";
 				marqueeTextRef.appendChild(span);
 			});
 		}
 
-		const spans = marqueeTextRef.querySelectorAll('span');
-		
+		const spans = marqueeTextRef.querySelectorAll("span");
+
 		// Color wave animation
 		gsap.to(spans, {
-			color: '#c5a059', // Gold
-			textShadow: '0 0 8px rgba(197, 160, 89, 0.4)',
+			color: "#c5a059", // Gold
+			textShadow: "0 0 8px rgba(197, 160, 89, 0.4)",
 			opacity: 1,
 			stagger: {
 				each: 0.05,
 				repeat: -1,
 				yoyo: true,
-				from: "start"
+				from: "start",
 			},
 			duration: 2,
-			ease: 'sine.inOut'
+			ease: "sine.inOut",
 		});
 
 		// Horizontal scroll
 		gsap.to(marqueeTextRef, {
 			xPercent: -25, // Move by 1/4 (since we have 4 repetitions)
 			duration: 20,
-			ease: 'none',
-			repeat: -1
+			ease: "none",
+			repeat: -1,
 		});
 	}
 
@@ -216,21 +162,20 @@
 		initParticles();
 		animateParticles();
 		initMarquee();
-		
-		window.addEventListener('resize', handleResize);
-		window.addEventListener('mousemove', handleMouseMove);
+
+		window.addEventListener("resize", handleResize);
+		window.addEventListener("mousemove", handleMouseMove);
 
 		return () => {
 			cancelAnimationFrame(animationFrameId);
-			window.removeEventListener('resize', handleResize);
-			window.removeEventListener('mousemove', handleMouseMove);
-			if (menuTl) menuTl.kill();
+			window.removeEventListener("resize", handleResize);
+			window.removeEventListener("mousemove", handleMouseMove);
 		};
 	});
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" type="image/png" href="/logo.png" />
 	<title>Ramadhan Sheet</title>
 </svelte:head>
 
@@ -239,45 +184,55 @@
 
 	<nav class="navbar">
 		<div class="logo">
-			<span class="logo-text">RAMADHAN</span>
-			<span class="logo-accent">SHEET</span>
+			<img src="/logo.png" alt="Logo SMK Diponegoro" class="logo-image" />
+			<div class="logo-stack">
+				<span class="logo-text">Ramadhan Sheet</span>
+				<span class="logo-accent">SMK Diponegoro Karanganyar</span>
+			</div>
 		</div>
 
 		<div class="desktop-links">
-			<a href="/" class:active={$page.url.pathname === '/'}>Beranda</a>
-			<a href="/laporan" class:active={$page.url.pathname.startsWith('/laporan')}>Laporan</a>
+			<a href="/" class:active={$page.url.pathname === "/"}>Beranda</a>
+			<a
+				href="/laporan"
+				class:active={$page.url.pathname.startsWith("/laporan")}
+				>Laporan</a
+			>
 		</div>
-
-		<button class="hamburger" onclick={toggleMenu} aria-label="Menu">
-			<span class="line line-1" class:open={menuOpen}></span>
-			<span class="line line-2" class:open={menuOpen}></span>
-		</button>
 	</nav>
-
-	<div class="mobile-overlay" bind:this={mobileOverlay}>
-		<div class="mobile-links">
-			{#each ['Beranda', 'Laporan'] as item, i}
-				{@const href = item === 'Beranda' ? '/' : `/${item.toLowerCase()}`}
-				<a 
-					{href} 
-					bind:this={menuItems[i]} 
-					onclick={toggleMenu}
-					class:active={$page.url.pathname === href || ($page.url.pathname.startsWith(href) && href !== '/')}
-				>
-					{item}
-				</a>
-			{/each}
-		</div>
-	</div>
 
 	<main class="content">
 		{@render children()}
 	</main>
 
+	<nav class="mobile-bottom-nav">
+		<a href="/" class:active={$page.url.pathname === "/"}>
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z" />
+			</svg>
+			<span>Beranda</span>
+		</a>
+		<a href="/laporan" class:active={$page.url.pathname === "/laporan"}>
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<path d="M4 4h16v16H4z" fill="none" />
+				<path d="M7 7h10v2H7zm0 4h6v2H7zm0 4h10v2H7z" />
+			</svg>
+			<span>Kelas</span>
+		</a>
+		<a
+			href="/laporan/siswa"
+			class:active={$page.url.pathname.startsWith("/laporan/siswa")}
+		>
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<path d="M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12zm0 2c-3.6 0-6.5 2.2-6.5 5v1h13v-1c0-2.8-2.9-5-6.5-5z" />
+			</svg>
+			<span>Siswa</span>
+		</a>
+	</nav>
+
 	<footer class="cinematic-footer">
 		<div class="marquee-container">
-			<div class="marquee-track" bind:this={marqueeTextRef}>
-			</div>
+			<div class="marquee-track" bind:this={marqueeTextRef}></div>
 		</div>
 	</footer>
 </div>
@@ -289,17 +244,17 @@
 		padding: 0;
 		background-color: #0a0a0a; /* Deep Charcoal */
 		color: #e0d8c3; /* Parchment */
-		font-family: 'Inter', sans-serif;
+		font-family: "Inter", sans-serif;
 		overflow-x: hidden;
 		-webkit-font-smoothing: antialiased;
 	}
 
 	:global(h1, h2, h3, h4, h5, h6) {
-		font-family: 'Playfair Display', serif;
+		font-family: "Playfair Display", serif;
 		font-weight: 700;
 		letter-spacing: -0.02em;
 	}
-	
+
 	:global(a) {
 		color: inherit;
 		text-decoration: none;
@@ -343,15 +298,36 @@
 	}
 
 	.logo {
-		font-family: 'Playfair Display', serif;
-		font-size: 1.5rem;
-		letter-spacing: 0.1em;
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+	}
+
+	.logo-image {
+		width: 42px;
+		height: 42px;
+		border-radius: 10px;
+		object-fit: cover;
+	}
+
+	.logo-stack {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.1;
+	}
+
+	.logo-text {
+		font-family: "Playfair Display", serif;
+		font-size: 1.15rem;
 		font-weight: 700;
 		color: #fff;
 	}
 
 	.logo-accent {
-		color: #c5a059; /* Gold */
+		font-size: 0.72rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: #c5a059;
 	}
 
 	.desktop-links {
@@ -367,13 +343,14 @@
 		position: relative;
 	}
 
-	.desktop-links a:hover, .desktop-links a.active {
+	.desktop-links a:hover,
+	.desktop-links a.active {
 		opacity: 1;
 		color: #c5a059;
 	}
 
 	.desktop-links a::after {
-		content: '';
+		content: "";
 		position: absolute;
 		bottom: -5px;
 		left: 0;
@@ -383,76 +360,19 @@
 		transition: width 0.3s ease;
 	}
 
-	.desktop-links a:hover::after, .desktop-links a.active::after {
+	.desktop-links a:hover::after,
+	.desktop-links a.active::after {
 		width: 100%;
 	}
 
-	/* Hamburger */
-	.hamburger {
+	.mobile-bottom-nav {
 		display: none;
-		background: none;
-		border: none;
-		flex-direction: column;
-		gap: 6px;
-		z-index: 60;
-		padding: 10px;
-	}
-
-	.line {
-		display: block;
-		width: 30px;
-		height: 2px;
-		background-color: #e0d8c3;
-		transition: all 0.3s ease;
-	}
-
-	.line.open.line-1 {
-		transform: rotate(45deg) translate(5px, 6px);
-		background-color: #c5a059;
-	}
-	.line.open.line-2 {
-		transform: rotate(-45deg) translate(5px, -6px);
-		background-color: #c5a059;
-	}
-
-	/* Mobile Overlay */
-	.mobile-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100vh;
-		background: #0a0a0a;
-		z-index: 40;
-		display: none; /* hidden by default */
-		justify-content: center;
-		align-items: center;
-		flex-direction: column;
-	}
-
-	.mobile-links {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 2rem;
-	}
-
-	.mobile-links a {
-		font-family: 'Playfair Display', serif;
-		font-size: 3rem;
-		color: #e0d8c3;
-		opacity: 0; /* Animated in by GSAP */
-	}
-	
-	.mobile-links a:hover, .mobile-links a.active {
-		color: #c5a059;
-		font-style: italic;
 	}
 
 	/* Main Content */
 	.content {
 		flex: 1;
-		padding: 2rem 4rem;
+		padding: 1.5rem 2.25rem;
 		position: relative;
 	}
 
@@ -474,32 +394,90 @@
 
 	.marquee-track {
 		display: inline-block;
-		font-family: 'Playfair Display', serif;
+		font-family: "Playfair Display", serif;
 		font-size: 0.9rem;
 		letter-spacing: 0.3em;
 		text-transform: uppercase;
 		white-space: nowrap;
 	}
-	
+
 	/* Responsive */
 	@media (max-width: 768px) {
 		.navbar {
-			padding: 1.5rem 2rem;
+			padding: 1.15rem 1rem 0.95rem;
+		}
+
+		.logo-image {
+			width: 36px;
+			height: 36px;
+		}
+
+		.logo-text {
+			font-size: 1rem;
+		}
+
+		.logo-accent {
+			font-size: 0.64rem;
 		}
 
 		.desktop-links {
 			display: none;
 		}
 
-		.hamburger {
-			display: flex;
+		.content {
+			padding: 1rem 0.85rem 5.6rem;
 		}
 
-		.content {
-			padding: 1.5rem 2rem;
+		.mobile-bottom-nav {
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 0.4rem;
+			padding: 0.7rem 0.7rem calc(0.8rem + env(safe-area-inset-bottom));
+			background: rgba(10, 10, 10, 0.96);
+			backdrop-filter: blur(12px);
+			border-top: 1px solid rgba(197, 160, 89, 0.2);
+			z-index: 80;
+		}
+
+		.mobile-bottom-nav a {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			gap: 0.2rem;
+			padding: 0.48rem 0.35rem;
+			border-radius: 10px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			font-size: 0.66rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			font-weight: 700;
+			color: rgba(224, 216, 195, 0.8);
+			background: rgba(255, 255, 255, 0.02);
+		}
+
+		.mobile-bottom-nav a svg {
+			width: 17px;
+			height: 17px;
+			fill: currentColor;
+			opacity: 0.9;
+		}
+
+		.mobile-bottom-nav a.active {
+			color: #fff;
+			border-color: rgba(197, 160, 89, 0.55);
+			background: rgba(197, 160, 89, 0.14);
+		}
+
+		.cinematic-footer {
+			padding-bottom: calc(3.7rem + env(safe-area-inset-bottom));
 		}
 	}
-	
+
 	@media (prefers-reduced-motion: reduce) {
 		.marquee-track {
 			animation: none !important;

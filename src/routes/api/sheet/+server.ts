@@ -74,51 +74,36 @@ export const POST: RequestHandler = async ({ request, platform }) => {
       studentId = result.id;
     }
 
-    // Upsert sheet using raw D1
     const existingSheet = await platform.env.DB.prepare(
-      'SELECT id FROM sheets WHERE student_id = ? AND tanggal = ?'
-    ).bind(studentId, tanggal).first<{ id: number }>();
-
-    const alasanValue = status_puasa === 'PENUH' ? null : String(alasan_tidak_puasa).trim();
+      'SELECT s.id, s.tanggal, st.fullname FROM sheets s JOIN students st ON s.student_id = st.id WHERE s.student_id = ? AND s.tanggal = ?'
+    ).bind(studentId, tanggal).first<{ id: number; tanggal: string; fullname: string }>();
 
     if (existingSheet) {
-      await platform.env.DB.prepare(`
-        UPDATE sheets SET 
-          sholat_fardhu = ?, 
-          status_puasa = ?, 
-          alasan_tidak_puasa = ?, 
-          ibadah_sunnah = ?, 
-          tadarus = ?, 
-          kebiasaan = ?,
-          updated_at = unixepoch()
-        WHERE id = ?
-      `).bind(
-        JSON.stringify(sholat_fardhu),
-        status_puasa,
-        alasanValue,
-        JSON.stringify(ibadah_sunnah),
-        tadarus.trim(),
-        JSON.stringify(kebiasaan),
-        existingSheet.id
-      ).run();
-    } else {
-      await platform.env.DB.prepare(`
-        INSERT INTO sheets (
-          student_id, tanggal, sholat_fardhu, status_puasa, 
-          alasan_tidak_puasa, ibadah_sunnah, tadarus, kebiasaan,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), unixepoch())
-      `).bind(
-        studentId,
-        tanggal,
-        JSON.stringify(sholat_fardhu),
-        status_puasa,
-        alasanValue,
-        JSON.stringify(ibadah_sunnah),
-        tadarus.trim(),
-        JSON.stringify(kebiasaan)
-      ).run();
+      return json({ 
+        error: 'Siswa sudah mengisi laporan untuk tanggal ini',
+        duplicate: true,
+        existingDate: existingSheet.tanggal,
+        studentName: existingSheet.fullname
+      }, { status: 409 });
     }
+
+    const alasanValue = status_puasa === 'PENUH' ? null : String(alasan_tidak_puasa).trim();
+    await platform.env.DB.prepare(`
+      INSERT INTO sheets (
+        student_id, tanggal, sholat_fardhu, status_puasa, 
+        alasan_tidak_puasa, ibadah_sunnah, tadarus, kebiasaan,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), unixepoch())
+    `).bind(
+      studentId,
+      tanggal,
+      JSON.stringify(sholat_fardhu),
+      status_puasa,
+      alasanValue,
+      JSON.stringify(ibadah_sunnah),
+      tadarus.trim(),
+      JSON.stringify(kebiasaan)
+    ).run();
 
     return json({ message: 'Laporan berhasil disimpan' });
   } catch (err) {
@@ -134,12 +119,14 @@ export const GET: RequestHandler = async ({ url, platform }) => {
   }
 
   try {
-    const nis = url.searchParams.get('nis');
-    const tanggal = url.searchParams.get('tanggal');
-    const rombel = url.searchParams.get('rombel');
+    const nis = url.searchParams.get('nis')?.trim() || '';
+    const tanggal = url.searchParams.get('tanggal')?.trim() || '';
+    const rombel = url.searchParams.get('rombel')?.trim() || '';
+    const dateFrom = url.searchParams.get('date_from')?.trim() || '';
+    const dateTo = url.searchParams.get('date_to')?.trim() || '';
+    const flat = url.searchParams.get('flat') === '1';
 
-    if (nis) {
-      // Get sheets for specific student with student info
+    if (nis && !flat) {
       const student = await platform.env.DB.prepare(
         'SELECT id, nis, fullname, rombel FROM students WHERE nis = ?'
       ).bind(nis).first<{ id: number; nis: string; fullname: string; rombel: string }>();
@@ -148,55 +135,83 @@ export const GET: RequestHandler = async ({ url, platform }) => {
         return json({ error: 'Siswa tidak ditemukan' }, { status: 404 });
       }
 
+      const sheetConditions: string[] = ['student_id = ?'];
+      const sheetBinds: Array<number | string> = [student.id];
+
+      if (tanggal) {
+        sheetConditions.push('tanggal = ?');
+        sheetBinds.push(tanggal);
+      } else {
+        if (dateFrom) {
+          sheetConditions.push('tanggal >= ?');
+          sheetBinds.push(dateFrom);
+        }
+        if (dateTo) {
+          sheetConditions.push('tanggal <= ?');
+          sheetBinds.push(dateTo);
+        }
+      }
+
       const sheets = await platform.env.DB.prepare(
-        `SELECT id, tanggal, sholat_fardhu, status_puasa, alasan_tidak_puasa, 
-                ibadah_sunnah, tadarus, kebiasaan, created_at 
-         FROM sheets WHERE student_id = ? ORDER BY tanggal DESC`
-      ).bind(student.id).all();
+        `SELECT id, tanggal, sholat_fardhu, status_puasa, alasan_tidak_puasa,
+                ibadah_sunnah, tadarus, kebiasaan, created_at
+         FROM sheets
+         WHERE ${sheetConditions.join(' AND ')}
+         ORDER BY tanggal DESC, created_at DESC`
+      ).bind(...sheetBinds).all();
 
       return json({ student: { ...student, sheets: sheets.results } });
     }
 
-    if (rombel && tanggal) {
-      // Get all sheets for specific rombel and tanggal with student info using JOIN
-      const result = await platform.env.DB.prepare(`
-        SELECT s.id, s.tanggal, s.sholat_fardhu, s.status_puasa, s.alasan_tidak_puasa,
-               s.ibadah_sunnah, s.tadarus, s.kebiasaan, s.created_at,
-               st.nis, st.fullname, st.rombel
-        FROM sheets s
-        JOIN students st ON s.student_id = st.id
-        WHERE st.rombel = ? AND s.tanggal = ?
-        ORDER BY s.created_at DESC
-      `).bind(rombel, tanggal).all();
+    const conditions: string[] = [];
+    const binds: string[] = [];
 
-      return json({ sheets: result.results });
+    if (nis) {
+      conditions.push('st.nis = ?');
+      binds.push(nis);
+    }
+    if (rombel) {
+      conditions.push('st.rombel = ?');
+      binds.push(rombel);
     }
 
     if (tanggal) {
-      // Get all sheets for specific date with student info using JOIN
-      const result = await platform.env.DB.prepare(`
-        SELECT s.id, s.tanggal, s.sholat_fardhu, s.status_puasa, s.alasan_tidak_puasa,
-               s.ibadah_sunnah, s.tadarus, s.kebiasaan, s.created_at,
-               st.nis, st.fullname, st.rombel
-        FROM sheets s
-        JOIN students st ON s.student_id = st.id
-        WHERE s.tanggal = ?
-        ORDER BY s.created_at DESC
-      `).bind(tanggal).all();
-
-      return json({ sheets: result.results });
+      conditions.push('s.tanggal = ?');
+      binds.push(tanggal);
+    } else {
+      if (dateFrom) {
+        conditions.push('s.tanggal >= ?');
+        binds.push(dateFrom);
+      }
+      if (dateTo) {
+        conditions.push('s.tanggal <= ?');
+        binds.push(dateTo);
+      }
     }
 
-    // Get all recent sheets (limited) with student info
-    const result = await platform.env.DB.prepare(`
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const hasFilters = conditions.length > 0;
+
+    let query = `
       SELECT s.id, s.tanggal, s.sholat_fardhu, s.status_puasa, s.alasan_tidak_puasa,
              s.ibadah_sunnah, s.tadarus, s.kebiasaan, s.created_at,
              st.nis, st.fullname, st.rombel
       FROM sheets s
       JOIN students st ON s.student_id = st.id
-      ORDER BY s.created_at DESC
-      LIMIT 100
-    `).all();
+      ${whereClause}
+      ORDER BY s.tanggal DESC, s.created_at DESC
+    `;
+
+    if (!hasFilters) {
+      query += ' LIMIT 100';
+    }
+
+    let statement = platform.env.DB.prepare(query);
+    if (binds.length > 0) {
+      statement = statement.bind(...binds);
+    }
+
+    const result = await statement.all();
 
     return json({ sheets: result.results });
   } catch (err) {

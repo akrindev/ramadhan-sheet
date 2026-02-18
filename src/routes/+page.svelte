@@ -1306,16 +1306,7 @@
 
         .cinematic-title {
             font-size: 1.65rem;
-            display: flex;
-            flex-direction: column;
             line-height: 1.2;
-        }
-
-        .cinematic-title::after {
-            content: "RAMADHAN";
-            display: block;
-            font-size: 1.1em;
-            margin-top: 0.1em;
         }
 
         .subtitle {

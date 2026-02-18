@@ -6,6 +6,7 @@ declare global {
       env: {
         DB: D1Database;
         IDENTITY_API_URL: string;
+        IDENTITY_CSRF_URL?: string;
       };
       context: {
         waitUntil(promise: Promise<any>): void;
@@ -16,4 +17,3 @@ declare global {
 }
 
 export { };
-

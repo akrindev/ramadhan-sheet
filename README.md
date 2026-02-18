@@ -47,7 +47,9 @@ A SvelteKit + Cloudflare Pages app to collect daily Ramadhan activity sheets.
 
    ```toml
    [vars]
-   IDENTITY_API_URL = "https://your-identity-service.example/api/student"
+   IDENTITY_API_URL = "https://your-identity-service.example/api/identity/student"
+   # Optional override. If omitted, app derives <origin>/sanctum/csrf-cookie from IDENTITY_API_URL
+   IDENTITY_CSRF_URL = "https://your-identity-service.example/sanctum/csrf-cookie"
    ```
 
 4. Authenticate Wrangler:
@@ -121,8 +123,9 @@ If you use Git integration in Dashboard:
 In Cloudflare Dashboard -> Workers & Pages -> `ramadhan-sheet` -> Settings:
 - Bind your D1 database with binding name: `DB`
 - Add env var: `IDENTITY_API_URL`
+- (Optional but recommended for Laravel Sanctum) Add env var: `IDENTITY_CSRF_URL`
 
-These names must match server code usage (`platform.env.DB`, `platform.env.IDENTITY_API_URL`).
+These names must match server code usage (`platform.env.DB`, `platform.env.IDENTITY_API_URL`, `platform.env.IDENTITY_CSRF_URL`).
 
 ### 3) Deploy manually with Wrangler
 
@@ -146,6 +149,10 @@ wrangler pages deploy .svelte-kit/cloudflare
 - `IDENTITY_API_URL belum dikonfigurasi`:
   - Add `IDENTITY_API_URL` in Pages project environment variables.
   - If testing locally, add `[vars]` with `IDENTITY_API_URL` in `wrangler.toml`.
+
+- Browser CORS error about `loopback` address space:
+  - Ensure frontend uses the internal endpoint (`/api/identity/student`) instead of calling the identity service directly from browser.
+  - For Laravel Sanctum-protected identity API, set `IDENTITY_CSRF_URL` (or keep default derived `/sanctum/csrf-cookie`) and keep both domains HTTPS.
 
 - Build succeeds but API fails after deploy:
   - Confirm you deployed the latest build (`bun run build` then `bun run deploy`).

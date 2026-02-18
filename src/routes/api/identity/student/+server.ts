@@ -2,7 +2,46 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import axios from 'axios';
 
-export const GET: RequestHandler = async ({ url, platform }) => {
+function getCookieHeader(setCookieHeader: string | string[] | undefined) {
+  if (!setCookieHeader) {
+    return '';
+  }
+
+  const cookieEntries = Array.isArray(setCookieHeader)
+    ? setCookieHeader
+    : setCookieHeader.split(/,(?=[^;]+=[^;]+)/g);
+
+  return cookieEntries
+    .map((cookie) => cookie.split(';', 1)[0]?.trim())
+    .filter((cookie): cookie is string => Boolean(cookie))
+    .join('; ');
+}
+
+function getXsrfToken(cookieHeader: string) {
+  if (!cookieHeader) {
+    return '';
+  }
+
+  const xsrfCookie = cookieHeader
+    .split('; ')
+    .find((cookie) => cookie.startsWith('XSRF-TOKEN='));
+
+  if (!xsrfCookie) {
+    return '';
+  }
+
+  return decodeURIComponent(xsrfCookie.replace('XSRF-TOKEN=', ''));
+}
+
+function deriveCsrfUrl(baseUrl: string) {
+  try {
+    return new URL('/sanctum/csrf-cookie', baseUrl).toString();
+  } catch {
+    return '';
+  }
+}
+
+export const GET: RequestHandler = async ({ request, url, platform }) => {
   const nis = url.searchParams.get('nis')?.trim();
 
   if (!nis) {
@@ -19,10 +58,46 @@ export const GET: RequestHandler = async ({ url, platform }) => {
   }
 
   try {
+    const csrfUrl = platform.env.IDENTITY_CSRF_URL ?? deriveCsrfUrl(baseUrl);
+    const requestOrigin = request.headers.get('origin');
+    const requestReferer = request.headers.get('referer');
+    const sanctumContextHeaders = {
+      ...(requestOrigin ? { Origin: requestOrigin } : {}),
+      ...(requestReferer ? { Referer: requestReferer } : {}),
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    let sanctumHeaders: Record<string, string> = {};
+
+    if (csrfUrl) {
+      try {
+        const csrfResponse = await axios.get(csrfUrl, {
+          headers: {
+            Accept: 'application/json',
+            ...sanctumContextHeaders
+          },
+          timeout: 10000
+        });
+
+        const cookieHeader = getCookieHeader(
+          csrfResponse.headers['set-cookie'] as string | string[] | undefined
+        );
+        const xsrfToken = getXsrfToken(cookieHeader);
+
+        sanctumHeaders = {
+          ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+          ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {})
+        };
+      } catch {
+        sanctumHeaders = {};
+      }
+    }
+
     const response = await axios.get(baseUrl, {
       params: { nis },
       headers: {
-        Accept: 'application/json'
+        Accept: 'application/json',
+        ...sanctumContextHeaders,
+        ...sanctumHeaders
       },
       timeout: 10000
     });
@@ -71,11 +146,14 @@ export const GET: RequestHandler = async ({ url, platform }) => {
     });
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      const errorMessage = 
+      const status = error.response?.status ?? 502;
+      const errorMessage =
         typeof error.response?.data === 'object' && error.response?.data !== null && 'error' in error.response.data
           ? String(error.response.data.error)
-          : 'Data siswa tidak ditemukan';
-      return json({ error: errorMessage }, { status: error.response?.status || 502 });
+          : status === 401 || status === 419
+            ? 'Gagal autentikasi ke layanan identitas (Sanctum/CSRF)'
+            : 'Data siswa tidak ditemukan';
+      return json({ error: errorMessage }, { status });
     }
     return json({ error: 'Gagal mengambil data dari layanan identitas' }, { status: 502 });
   }

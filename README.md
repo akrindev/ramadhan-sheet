@@ -50,6 +50,8 @@ A SvelteKit + Cloudflare Pages app to collect daily Ramadhan activity sheets.
    IDENTITY_API_URL = "https://your-identity-service.example/api/identity/student"
    # Optional override. If omitted, app derives <origin>/sanctum/csrf-cookie from IDENTITY_API_URL
    IDENTITY_CSRF_URL = "https://your-identity-service.example/sanctum/csrf-cookie"
+   # Optional override. If omitted, app derives <origin>/assembly-login from IDENTITY_API_URL
+   IDENTITY_LOGIN_URL = "https://your-identity-service.example/assembly-login"
    ```
 
 4. Authenticate Wrangler:
@@ -124,8 +126,9 @@ In Cloudflare Dashboard -> Workers & Pages -> `ramadhan-sheet` -> Settings:
 - Bind your D1 database with binding name: `DB`
 - Add env var: `IDENTITY_API_URL`
 - (Optional but recommended for Laravel Sanctum) Add env var: `IDENTITY_CSRF_URL`
+- (Optional) Add env var: `IDENTITY_LOGIN_URL`
 
-These names must match server code usage (`platform.env.DB`, `platform.env.IDENTITY_API_URL`, `platform.env.IDENTITY_CSRF_URL`).
+These names must match server code usage (`platform.env.DB`, `platform.env.IDENTITY_API_URL`, `platform.env.IDENTITY_CSRF_URL`, `platform.env.IDENTITY_LOGIN_URL`).
 
 ### 3) Deploy manually with Wrangler
 

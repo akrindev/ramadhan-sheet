@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import gsap from 'gsap';
 
@@ -235,6 +236,13 @@
     }
   }
 
+  async function logoutTeacher() {
+    await fetch('/api/auth/logout', {
+      method: 'POST'
+    });
+    await goto('/laporan/login');
+  }
+
   onMount(() => {
     reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     fetchSummary();
@@ -255,10 +263,11 @@
       <span class="badge">Monitoring Ibadah</span>
     </div>
     <h1 class="page-title">Ringkasan Per Kelas</h1>
-    <p class="page-subtitle">Halaman ini khusus ringkasan. Aktivitas siswa tersedia di halaman terpisah.</p>
+    <p class="page-subtitle">Halaman ini hanya dapat diakses oleh guru untuk monitoring ringkasan dan aktivitas siswa.</p>
 
     <div class="header-nav">
       <a href="/" class="btn-nav">BERANDA</a>
+      <button type="button" class="btn-nav" onclick={logoutTeacher}>KELUAR</button>
     </div>
   </header>
 
@@ -455,6 +464,7 @@
     font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.05em;
+    font-family: inherit;
     transition: all 0.24s ease;
   }
 

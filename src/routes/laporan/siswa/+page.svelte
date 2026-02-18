@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { onMount, tick } from 'svelte';
   import gsap from 'gsap';
 
@@ -378,6 +379,13 @@
     fetchActivities();
   }
 
+  async function logoutTeacher() {
+    await fetch('/api/auth/logout', {
+      method: 'POST'
+    });
+    await goto('/laporan/login');
+  }
+
   onMount(() => {
     reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const params = new URLSearchParams(window.location.search);
@@ -417,10 +425,11 @@
       <span class="badge">Laporan Siswa</span>
     </div>
     <h1 class="page-title">Aktivitas Siswa</h1>
-    <p class="page-subtitle">Lihat detail aktivitas harian siswa dengan filter NIS, kelas, dan rentang tanggal.</p>
+    <p class="page-subtitle">Akses khusus guru untuk melihat detail aktivitas harian siswa berdasarkan NIS, kelas, dan rentang tanggal.</p>
     <div class="header-nav">
       <a href="/laporan" class="btn-nav">RINGKASAN KELAS</a>
       <a href="/" class="btn-nav">BERANDA</a>
+      <button type="button" class="btn-nav" onclick={logoutTeacher}>KELUAR</button>
     </div>
   </section>
 
@@ -657,6 +666,7 @@
     font-weight: 700;
     letter-spacing: 0.05em;
     background: rgba(255, 255, 255, 0.03);
+    font-family: inherit;
   }
 
   .glass-card {

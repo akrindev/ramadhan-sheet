@@ -60,7 +60,7 @@
 
     <label class="field">
       <span>Email / Username</span>
-      <input type="text" bind:value={identifier} placeholder="contoh: 2021102 atau email" disabled={loading} />
+      <input type="text" bind:value={identifier} placeholder="Masukkan email atau username" disabled={loading} />
     </label>
 
     <label class="field">

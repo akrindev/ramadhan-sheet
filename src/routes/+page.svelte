@@ -21,6 +21,11 @@
     let ibadahSunnah = $state<string[]>([]);
     let tadarus = $state("");
     let kebiasaan = $state<string[]>([]);
+    let hasExistingData = $state(false);
+
+    const today = new Date().toISOString().split("T")[0];
+    const isPastDate = $derived(tanggal < today);
+    const isToday = $derived(tanggal === today);
 
     // Refs for animation
     let titleRef = $state<HTMLElement>();
@@ -165,7 +170,65 @@
             rombel = payload.rombel;
             nis = payload.nis;
             studentFound = true;
-            message = { text: "Data siswa ditemukan.", type: "success" };
+
+            // Load existing sheet data for today
+            const today = new Date().toISOString().split("T")[0];
+            const sheetResponse = await fetch(
+                `/api/sheet?nis=${encodeURIComponent(nis)}&tanggal=${today}`,
+            );
+            if (sheetResponse.ok) {
+                const sheetData: unknown = await sheetResponse.json();
+                if (
+                    sheetData &&
+                    typeof sheetData === "object" &&
+                    "student" in sheetData &&
+                    sheetData.student &&
+                    typeof sheetData.student === "object" &&
+                    "sheets" in sheetData.student &&
+                    Array.isArray(sheetData.student.sheets) &&
+                    sheetData.student.sheets.length > 0
+                ) {
+                    const sheet = sheetData.student.sheets[0] as {
+                        sholat_fardhu: string;
+                        status_puasa: string;
+                        alasan_tidak_puasa: string | null;
+                        ibadah_sunnah: string;
+                        tadarus: string;
+                        kebiasaan: string;
+                    };
+                    try {
+                        sholatFardhu = JSON.parse(sheet.sholat_fardhu) || [];
+                        statusPuasa = sheet.status_puasa;
+                        alasanTidakPuasa = sheet.alasan_tidak_puasa || "";
+                        ibadahSunnah = JSON.parse(sheet.ibadah_sunnah) || [];
+                        tadarus = sheet.tadarus;
+                        kebiasaan = JSON.parse(sheet.kebiasaan) || [];
+                        hasExistingData = true;
+                        message = {
+                            text: "Data laporan hari ini ditemukan. Silakan perbarui jika perlu.",
+                            type: "success",
+                        };
+                    } catch {
+                        hasExistingData = false;
+                        message = {
+                            text: "Data siswa ditemukan. Terjadi kesalahan saat memuat data laporan.",
+                            type: "error",
+                        };
+                    }
+                } else {
+                    hasExistingData = false;
+                    message = {
+                        text: "Data siswa ditemukan. Silakan isi laporan hari ini.",
+                        type: "success",
+                    };
+                }
+            } else {
+                hasExistingData = false;
+                message = {
+                    text: "Data siswa ditemukan. Silakan isi laporan hari ini.",
+                    type: "success",
+                };
+            }
 
             // Animate report card entrance
             setTimeout(() => {
@@ -239,13 +302,20 @@
 
             const payload = (await response.json()) as {
                 error?: string;
-                duplicate?: boolean;
+                readonly?: boolean;
+                future?: boolean;
+                updated?: boolean;
                 existingDate?: string;
             };
             if (!response.ok) {
-                if (payload.duplicate && payload.existingDate) {
+                if (payload.readonly && payload.existingDate) {
                     message = {
                         text: `${payload.error} (${new Date(payload.existingDate).toLocaleDateString("id-ID")})`,
+                        type: "error",
+                    };
+                } else if (payload.future) {
+                    message = {
+                        text: payload.error || "Tidak bisa mengisi laporan untuk tanggal di masa depan",
                         type: "error",
                     };
                 } else {
@@ -259,7 +329,7 @@
             }
 
             isCompleted = true;
-            message = { text: "", type: "" };
+            message = { text: payload.updated ? "Laporan berhasil diperbarui" : "Laporan berhasil disimpan", type: "success" };
 
             // Animate completion
             setTimeout(() => {
@@ -615,6 +685,22 @@
                     </fieldset>
 
                     <div class="action-footer">
+                        {#if isPastDate}
+                            <div class="date-status warning">
+                                <span class="status-icon">⚠️</span>
+                                <span>Tanggal sudah lewat - hanya bisa mengisi, tidak bisa mengubah</span>
+                            </div>
+                        {:else if hasExistingData && isToday}
+                            <div class="date-status info">
+                                <span class="status-icon">📝</span>
+                                <span>Mengedit laporan hari ini</span>
+                            </div>
+                        {:else if !hasExistingData && isToday}
+                            <div class="date-status new">
+                                <span class="status-icon">✨</span>
+                                <span>Laporan baru hari ini</span>
+                            </div>
+                        {/if}
                         <button
                             class="btn-submit"
                             type="button"
@@ -624,7 +710,9 @@
                             <span class="btn-text"
                                 >{submitLoading
                                     ? "MENYIMPAN..."
-                                    : "SIMPAN LAPORAN"}</span
+                                    : hasExistingData && isToday
+                                      ? "PERBARUI LAPORAN"
+                                      : "SIMPAN LAPORAN"}</span
                             >
                             <div class="btn-glare"></div>
                         </button>
@@ -953,6 +1041,41 @@
     /* Submit Button */
     .action-footer {
         margin-top: 3rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .date-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .date-status.warning {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #fca5a5;
+    }
+
+    .date-status.info {
+        background: rgba(59, 130, 246, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #93c5fd;
+    }
+
+    .date-status.new {
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #86efac;
+    }
+
+    .status-icon {
+        font-size: 1.1rem;
     }
 
     .btn-submit {
@@ -1182,7 +1305,17 @@
         }
 
         .cinematic-title {
-            font-size: 1.85rem;
+            font-size: 1.65rem;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .cinematic-title::after {
+            content: "RAMADHAN";
+            display: block;
+            font-size: 1.1em;
+            margin-top: 0.1em;
         }
 
         .subtitle {

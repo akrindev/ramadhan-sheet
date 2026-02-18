@@ -556,7 +556,8 @@
 		}
 
 		.cinematic-footer {
-			padding-bottom: calc(3.7rem + env(safe-area-inset-bottom));
+			padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+			z-index: 70;
 		}
 	}
 

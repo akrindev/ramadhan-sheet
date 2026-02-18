@@ -74,23 +74,52 @@ export const POST: RequestHandler = async ({ request, platform }) => {
       studentId = result.id;
     }
 
-    const existingSheet = await platform.env.DB.prepare(
-      'SELECT s.id, s.tanggal, st.fullname FROM sheets s JOIN students st ON s.student_id = st.id WHERE s.student_id = ? AND s.tanggal = ?'
-    ).bind(studentId, tanggal).first<{ id: number; tanggal: string; fullname: string }>();
+    const today = new Date().toISOString().split('T')[0];
 
-    if (existingSheet) {
-      return json({ 
-        error: 'Siswa sudah mengisi laporan untuk tanggal ini',
-        duplicate: true,
-        existingDate: existingSheet.tanggal,
-        studentName: existingSheet.fullname
+    if (tanggal > today) {
+      return json({
+        error: 'Tidak bisa mengisi laporan untuk tanggal di masa depan',
+        future: true
+      }, { status: 400 });
+    }
+
+    const isToday = tanggal === today;
+    const existingSheet = await platform.env.DB.prepare(
+      'SELECT id FROM sheets WHERE student_id = ? AND tanggal = ?'
+    ).bind(studentId, tanggal).first<{ id: number }>();
+
+    if (existingSheet && !isToday) {
+      return json({
+        error: 'Laporan untuk tanggal yang sudah lewat tidak bisa diubah',
+        readonly: true,
+        existingDate: tanggal
       }, { status: 409 });
     }
 
     const alasanValue = status_puasa === 'PENUH' ? null : String(alasan_tidak_puasa).trim();
+
+    if (existingSheet && isToday) {
+      await platform.env.DB.prepare(`
+        UPDATE sheets SET
+          sholat_fardhu = ?, status_puasa = ?, alasan_tidak_puasa = ?,
+          ibadah_sunnah = ?, tadarus = ?, kebiasaan = ?, updated_at = unixepoch()
+        WHERE id = ?
+      `).bind(
+        JSON.stringify(sholat_fardhu),
+        status_puasa,
+        alasanValue,
+        JSON.stringify(ibadah_sunnah),
+        tadarus.trim(),
+        JSON.stringify(kebiasaan),
+        existingSheet.id
+      ).run();
+
+      return json({ message: 'Laporan berhasil diperbarui', updated: true });
+    }
+
     await platform.env.DB.prepare(`
       INSERT INTO sheets (
-        student_id, tanggal, sholat_fardhu, status_puasa, 
+        student_id, tanggal, sholat_fardhu, status_puasa,
         alasan_tidak_puasa, ibadah_sunnah, tadarus, kebiasaan,
         created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), unixepoch())

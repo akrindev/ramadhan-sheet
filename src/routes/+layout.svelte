@@ -1,10 +1,16 @@
 <script lang="ts">
 	import { page } from "$app/stores";
+	import { goto } from "$app/navigation";
 	import gsap from "gsap";
 	import { onMount } from "svelte";
 
-	// Props
-	let { children } = $props();
+	type LayoutData = {
+		teacherAuthenticated?: boolean;
+	};
+
+	let { children, data } = $props<{ children: import("svelte").Snippet; data: LayoutData }>();
+
+	let logoutLoading = $state(false);
 
 	// State
 	let canvas: HTMLCanvasElement;
@@ -17,6 +23,18 @@
 	let marqueeTextRef: HTMLElement;
 	let marqueeText =
 		"RAMADHAN KAREEM • SUCIKAN HATI • TINGKATKAN IMAN • MERAIH BERKAH • ";
+
+	async function logoutTeacher() {
+		logoutLoading = true;
+		try {
+			await fetch("/api/auth/logout", {
+				method: "POST",
+			});
+		} finally {
+			logoutLoading = false;
+			await goto("/laporan/login");
+		}
+	}
 
 	// Particle System
 	class Particle {
@@ -192,12 +210,41 @@
 		</div>
 
 		<div class="desktop-links">
-			<a href="/" class:active={$page.url.pathname === "/"}>Beranda</a>
-			<a
-				href="/laporan"
-				class:active={$page.url.pathname.startsWith("/laporan")}
-				>Laporan</a
-			>
+			<a href="/" class:active={$page.url.pathname === "/"}>
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z" />
+				</svg>
+				<span>Beranda</span>
+			</a>
+			{#if data.teacherAuthenticated}
+				<a href="/laporan" class:active={$page.url.pathname === "/laporan"}>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M4 4h16v16H4z" fill="none" />
+						<path d="M7 7h10v2H7zm0 4h6v2H7zm0 4h10v2H7z" />
+					</svg>
+					<span>Kelas</span>
+				</a>
+				<a href="/laporan/siswa" class:active={$page.url.pathname.startsWith("/laporan/siswa")}>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12zm0 2c-3.6 0-6.5 2.2-6.5 5v1h13v-1c0-2.8-2.9-5-6.5-5z" />
+					</svg>
+					<span>Siswa</span>
+				</a>
+				<button class="desktop-link-btn" onclick={logoutTeacher} disabled={logoutLoading}>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M14 3h-4a2 2 0 0 0-2 2v3h2V5h4v14h-4v-3H8v3a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z" />
+						<path d="M3 12l4-4v3h7v2H7v3z" />
+					</svg>
+					<span>{logoutLoading ? "Keluar..." : "Keluar"}</span>
+				</button>
+			{:else}
+				<a href="/laporan/login" class:active={$page.url.pathname === "/laporan/login"}>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z" />
+					</svg>
+					<span>Login Guru</span>
+				</a>
+			{/if}
 		</div>
 	</nav>
 
@@ -212,22 +259,38 @@
 			</svg>
 			<span>Beranda</span>
 		</a>
-		<a href="/laporan" class:active={$page.url.pathname === "/laporan"}>
-			<svg viewBox="0 0 24 24" aria-hidden="true">
-				<path d="M4 4h16v16H4z" fill="none" />
-				<path d="M7 7h10v2H7zm0 4h6v2H7zm0 4h10v2H7z" />
-			</svg>
-			<span>Kelas</span>
-		</a>
-		<a
-			href="/laporan/siswa"
-			class:active={$page.url.pathname.startsWith("/laporan/siswa")}
-		>
-			<svg viewBox="0 0 24 24" aria-hidden="true">
-				<path d="M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12zm0 2c-3.6 0-6.5 2.2-6.5 5v1h13v-1c0-2.8-2.9-5-6.5-5z" />
-			</svg>
-			<span>Siswa</span>
-		</a>
+		{#if data.teacherAuthenticated}
+			<a href="/laporan" class:active={$page.url.pathname === "/laporan"}>
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M4 4h16v16H4z" fill="none" />
+					<path d="M7 7h10v2H7zm0 4h6v2H7zm0 4h10v2H7z" />
+				</svg>
+				<span>Kelas</span>
+			</a>
+			<a
+				href="/laporan/siswa"
+				class:active={$page.url.pathname.startsWith("/laporan/siswa")}
+			>
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12zm0 2c-3.6 0-6.5 2.2-6.5 5v1h13v-1c0-2.8-2.9-5-6.5-5z" />
+				</svg>
+				<span>Siswa</span>
+			</a>
+			<button onclick={logoutTeacher} disabled={logoutLoading}>
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M14 3h-4a2 2 0 0 0-2 2v3h2V5h4v14h-4v-3H8v3a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z" />
+					<path d="M3 12l4-4v3h7v2H7v3z" />
+				</svg>
+				<span>{logoutLoading ? "Keluar..." : "Keluar"}</span>
+			</button>
+		{:else}
+			<a href="/laporan/login" class:active={$page.url.pathname === "/laporan/login"}>
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z" />
+				</svg>
+				<span>Masuk</span>
+			</a>
+		{/if}
 	</nav>
 
 	<footer class="cinematic-footer">
@@ -335,21 +398,39 @@
 		gap: 3rem;
 	}
 
-	.desktop-links a {
+	.desktop-links a,
+	.desktop-link-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.38rem;
 		font-size: 0.9rem;
 		text-transform: uppercase;
 		letter-spacing: 0.15em;
 		opacity: 0.7;
 		position: relative;
+		background: transparent;
+		border: none;
+		color: inherit;
+		font-family: inherit;
+		padding: 0;
+	}
+
+	.desktop-links a svg,
+	.desktop-link-btn svg {
+		width: 15px;
+		height: 15px;
+		fill: currentColor;
 	}
 
 	.desktop-links a:hover,
-	.desktop-links a.active {
+	.desktop-links a.active,
+	.desktop-link-btn:hover {
 		opacity: 1;
 		color: #c5a059;
 	}
 
-	.desktop-links a::after {
+	.desktop-links a::after,
+	.desktop-link-btn::after {
 		content: "";
 		position: absolute;
 		bottom: -5px;
@@ -361,7 +442,8 @@
 	}
 
 	.desktop-links a:hover::after,
-	.desktop-links a.active::after {
+	.desktop-links a.active::after,
+	.desktop-link-btn:hover::after {
 		width: 100%;
 	}
 
@@ -443,7 +525,8 @@
 			z-index: 80;
 		}
 
-		.mobile-bottom-nav a {
+		.mobile-bottom-nav a,
+		.mobile-bottom-nav button {
 			display: flex;
 			flex-direction: column;
 			justify-content: center;
@@ -458,16 +541,20 @@
 			font-weight: 700;
 			color: rgba(224, 216, 195, 0.8);
 			background: rgba(255, 255, 255, 0.02);
+			font-family: inherit;
+			border: 1px solid rgba(255, 255, 255, 0.1);
 		}
 
-		.mobile-bottom-nav a svg {
+		.mobile-bottom-nav a svg,
+		.mobile-bottom-nav button svg {
 			width: 17px;
 			height: 17px;
 			fill: currentColor;
 			opacity: 0.9;
 		}
 
-		.mobile-bottom-nav a.active {
+		.mobile-bottom-nav a.active,
+		.mobile-bottom-nav button:active {
 			color: #fff;
 			border-color: rgba(197, 160, 89, 0.55);
 			background: rgba(197, 160, 89, 0.14);

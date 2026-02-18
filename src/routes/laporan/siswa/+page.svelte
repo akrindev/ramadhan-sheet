@@ -383,7 +383,7 @@
     await fetch('/api/auth/logout', {
       method: 'POST'
     });
-    await goto('/laporan/login');
+    await goto('/laporan/login', { invalidateAll: true });
   }
 
   onMount(() => {

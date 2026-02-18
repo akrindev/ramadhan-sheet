@@ -32,7 +32,7 @@
 			});
 		} finally {
 			logoutLoading = false;
-			await goto("/laporan/login");
+			await goto("/laporan/login", { invalidateAll: true });
 		}
 	}
 

@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import axios from 'axios';
-import { setTeacherSession } from '$lib/server/teacher-auth';
+import { clearTeacherSession, setTeacherSession } from '$lib/server/teacher-auth';
 
 function getCookieHeader(setCookieHeader: string | string[] | undefined) {
   if (!setCookieHeader) {
@@ -43,6 +43,8 @@ function deriveUrl(baseUrl: string, path: string) {
 }
 
 export const POST: RequestHandler = async ({ request, platform, cookies }) => {
+  clearTeacherSession(cookies);
+
   if (!platform?.env) {
     return json({ error: 'Runtime environment tidak tersedia' }, { status: 500 });
   }

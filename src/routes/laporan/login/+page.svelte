@@ -33,7 +33,7 @@
         return;
       }
 
-      await goto('/laporan');
+      await goto('/laporan', { invalidateAll: true });
     } catch {
       error = 'Gagal terhubung ke layanan autentikasi';
     } finally {

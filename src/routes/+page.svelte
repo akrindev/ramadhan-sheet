@@ -4,6 +4,15 @@
 
     type ToastType = "success" | "error" | "";
 
+    function getLocaleDateTime(): string {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Jakarta',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date());
+    }
+
     let nis = $state("");
     let studentFound = $state(false);
     let identityLoading = $state(false);
@@ -14,7 +23,7 @@
     let fullname = $state("");
     let rombel = $state("");
 
-    let tanggal = $state(new Date().toISOString().split("T")[0]);
+    let tanggal = $state(getLocaleDateTime());
     let sholatFardhu = $state<string[]>([]);
     let statusPuasa = $state("PENUH");
     let alasanTidakPuasa = $state("");
@@ -23,7 +32,7 @@
     let kebiasaan = $state<string[]>([]);
     let hasExistingData = $state(false);
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocaleDateTime();
     const isPastDate = $derived(tanggal < today);
     const isToday = $derived(tanggal === today);
 
@@ -112,7 +121,7 @@
         ibadahSunnah = [];
         tadarus = "";
         kebiasaan = [];
-        tanggal = new Date().toISOString().split("T")[0];
+        tanggal = getLocaleDateTime();
         isCompleted = false;
         message = { text: "", type: "" };
 
@@ -172,7 +181,7 @@
             studentFound = true;
 
             // Load existing sheet data for today
-            const today = new Date().toISOString().split("T")[0];
+            const today = getLocaleDateTime();
             const sheetResponse = await fetch(
                 `/api/sheet?nis=${encodeURIComponent(nis)}&tanggal=${today}`,
             );

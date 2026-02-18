@@ -3,6 +3,15 @@ import type { RequestHandler } from './$types';
 
 const statusPuasaOptions = new Set(['PENUH', 'SETENGAH HARI', 'TIDAK PUASA']);
 
+function getLocaleDateTime(): string {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(new Date());
+}
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
@@ -74,7 +83,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
       studentId = result.id;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocaleDateTime();
 
     if (tanggal > today) {
       return json({

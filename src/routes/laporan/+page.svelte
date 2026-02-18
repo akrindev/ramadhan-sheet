@@ -3,6 +3,15 @@
   import { onMount } from 'svelte';
   import gsap from 'gsap';
 
+  function getLocaleDateTime(): string {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date());
+  }
+
   type LaporanData = {
     rombel: string;
     total_siswa: number;
@@ -14,7 +23,7 @@
 
   let loading = $state(false);
   let error = $state('');
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocaleDateTime();
   let dateFrom = $state(today);
   let dateTo = $state(today);
   let selectedRombel = $state('');

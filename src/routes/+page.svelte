@@ -282,7 +282,7 @@
         if (titleRef) {
             const chars = titleRef.innerText
                 .split("")
-                .map((c) => `<span>${c}</span>`)
+                .map((c) => `<span>${c === " " ? "&nbsp;" : c}</span>`)
                 .join("");
             titleRef.innerHTML = chars;
             const spans = titleRef.querySelectorAll("span");

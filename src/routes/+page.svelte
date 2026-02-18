@@ -352,7 +352,7 @@
 </script>
 
 <svelte:head>
-    <title>Ramadhan Sheet Harian</title>
+    <title>JURNAL HARIAN RAMADHAN</title>
 </svelte:head>
 
 <div class="page-container">
@@ -407,9 +407,9 @@
                 <span class="badge">SMK Diponegoro Karanganyar</span>
             </div>
             <h1 class="cinematic-title" bind:this={titleRef}>
-                Ramadhan Sheet Harian
+                JURNAL HARIAN RAMADHAN
             </h1>
-            <p class="subtitle">Catat ibadahmu, raih berkahnya.</p>
+            <p class="subtitle">Tunaikan Ibadahmu, Raih Berkahnya.</p>
         </header>
 
         <div class="form-container" bind:this={formContainerRef}>

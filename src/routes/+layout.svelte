@@ -252,7 +252,7 @@
 		{@render children()}
 	</main>
 
-	<nav class="mobile-bottom-nav">
+	<nav class="mobile-bottom-nav" class:teacher-auth={Boolean(data.teacherAuthenticated)}>
 		<a href="/" class:active={$page.url.pathname === "/"}>
 			<svg viewBox="0 0 24 24" aria-hidden="true">
 				<path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z" />
@@ -260,21 +260,12 @@
 			<span>Beranda</span>
 		</a>
 		{#if data.teacherAuthenticated}
-			<a href="/laporan" class:active={$page.url.pathname === "/laporan"}>
+			<a href="/laporan" class:active={$page.url.pathname.startsWith("/laporan") && !$page.url.pathname.startsWith("/laporan/login")}>
 				<svg viewBox="0 0 24 24" aria-hidden="true">
 					<path d="M4 4h16v16H4z" fill="none" />
 					<path d="M7 7h10v2H7zm0 4h6v2H7zm0 4h10v2H7z" />
 				</svg>
-				<span>Kelas</span>
-			</a>
-			<a
-				href="/laporan/siswa"
-				class:active={$page.url.pathname.startsWith("/laporan/siswa")}
-			>
-				<svg viewBox="0 0 24 24" aria-hidden="true">
-					<path d="M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12zm0 2c-3.6 0-6.5 2.2-6.5 5v1h13v-1c0-2.8-2.9-5-6.5-5z" />
-				</svg>
-				<span>Siswa</span>
+				<span>Laporan</span>
 			</a>
 			<button onclick={logoutTeacher} disabled={logoutLoading}>
 				<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -284,11 +275,11 @@
 				<span>{logoutLoading ? "Keluar..." : "Keluar"}</span>
 			</button>
 		{:else}
-			<a href="/laporan/login" class:active={$page.url.pathname === "/laporan/login"}>
+			<a href="/laporan/login" class:active={$page.url.pathname.startsWith("/laporan")}>
 				<svg viewBox="0 0 24 24" aria-hidden="true">
 					<path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z" />
 				</svg>
-				<span>Masuk</span>
+				<span>Login Guru</span>
 			</a>
 		{/if}
 	</nav>
@@ -516,13 +507,17 @@
 			right: 0;
 			bottom: 0;
 			display: grid;
-			grid-template-columns: repeat(3, minmax(0, 1fr));
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 			gap: 0.4rem;
 			padding: 0.7rem 0.7rem calc(0.8rem + env(safe-area-inset-bottom));
 			background: rgba(10, 10, 10, 0.96);
 			backdrop-filter: blur(12px);
 			border-top: 1px solid rgba(197, 160, 89, 0.2);
 			z-index: 80;
+		}
+
+		.mobile-bottom-nav.teacher-auth {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
 
 		.mobile-bottom-nav a,
